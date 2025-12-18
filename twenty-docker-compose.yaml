@@ -1,0 +1,153 @@
+# Documentation: https://twenty.com/developers/section/self-hosting
+
+name: twenty
+services:
+  server:
+    image: 'twentycrm/twenty:${TAG:-latest}'
+    volumes:
+      - '${COOLIFY_VOLUME_SERVER}:/app/packages/twenty-server/.local-storage'
+    environment:
+      - SERVICE_FQDN_SERVER_3000
+      - NODE_PORT=3000
+      - 'PG_DATABASE_URL=postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@db:5432/default'
+      - 'SERVER_URL=${SERVICE_URL_SERVER}'
+      - 'REDIS_URL=redis://redis:6379'
+      - 'DISABLE_DB_MIGRATIONS=${DISABLE_DB_MIGRATIONS:-false}'
+      - 'DISABLE_CRON_JOBS_REGISTRATION=${DISABLE_CRON_JOBS_REGISTRATION:-false}'
+      - 'STORAGE_TYPE=${STORAGE_TYPE:-local}'
+      - 'STORAGE_S3_REGION=${STORAGE_S3_REGION:-}'
+      - 'STORAGE_S3_NAME=${STORAGE_S3_NAME:-}'
+      - 'STORAGE_S3_ENDPOINT=${STORAGE_S3_ENDPOINT:-}'
+      - 'APP_SECRET=${APP_SECRET:-replace_me_with_a_random_string_minimum_32_characters}'
+      - 'MESSAGING_PROVIDER_GMAIL_ENABLED=${MESSAGING_PROVIDER_GMAIL_ENABLED:-false}'
+      - 'CALENDAR_PROVIDER_GOOGLE_ENABLED=${CALENDAR_PROVIDER_GOOGLE_ENABLED:-false}'
+      - 'AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}'
+      - 'AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}'
+      - 'AUTH_GOOGLE_CALLBACK_URL=${AUTH_GOOGLE_CALLBACK_URL:-}'
+      - 'AUTH_GOOGLE_APIS_CALLBACK_URL=${AUTH_GOOGLE_APIS_CALLBACK_URL:-}'
+      - 'CALENDAR_PROVIDER_MICROSOFT_ENABLED=${CALENDAR_PROVIDER_MICROSOFT_ENABLED:-false}'
+      - 'MESSAGING_PROVIDER_MICROSOFT_ENABLED=${MESSAGING_PROVIDER_MICROSOFT_ENABLED:-false}'
+      - 'AUTH_MICROSOFT_ENABLED=${AUTH_MICROSOFT_ENABLED:-false}'
+      - 'AUTH_MICROSOFT_CLIENT_ID=${AUTH_MICROSOFT_CLIENT_ID:-}'
+      - 'AUTH_MICROSOFT_CLIENT_SECRET=${AUTH_MICROSOFT_CLIENT_SECRET:-}'
+      - 'AUTH_MICROSOFT_CALLBACK_URL=${AUTH_MICROSOFT_CALLBACK_URL:-}'
+      - 'AUTH_MICROSOFT_APIS_CALLBACK_URL=${AUTH_MICROSOFT_APIS_CALLBACK_URL:-}'
+      - 'EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-contact@yourdomain.com}'
+      - 'EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-Twenty CRM}'
+      - 'EMAIL_SYSTEM_ADDRESS=${EMAIL_SYSTEM_ADDRESS:-system@yourdomain.com}'
+      - 'EMAIL_DRIVER=${EMAIL_DRIVER:-smtp}'
+      - 'EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-}'
+      - 'EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}'
+      - 'EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}'
+      - 'EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}'
+      - 'COOLIFY_CONTAINER_NAME=${COOLIFY_CONTAINER_NAME:-}'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - '--fail'
+        - 'http://localhost:3000/healthz'
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: always
+    labels:
+      - traefik.enable=true
+      - 'traefik.http.routers.twenty-server-http.rule=Host(`${SERVICE_FQDN_SERVER}`)'
+      - traefik.http.routers.twenty-server-http.entryPoints=http
+      - traefik.http.routers.twenty-server-http.middlewares=redirect-to-https
+      - 'traefik.http.routers.twenty-server-https.rule=Host(`${SERVICE_FQDN_SERVER}`)'
+      - traefik.http.routers.twenty-server-https.entryPoints=https
+      - traefik.http.routers.twenty-server-https.tls=true
+      - traefik.http.routers.twenty-server-https.tls.certresolver=letsencrypt
+      - traefik.http.services.twenty-server.loadbalancer.server.port=3000
+  worker:
+    image: 'twentycrm/twenty:${TAG:-latest}'
+    volumes:
+      - '${COOLIFY_VOLUME_SERVER}:/app/packages/twenty-server/.local-storage'
+    command:
+      - yarn
+      - 'worker:prod'
+    environment:
+      - 'PG_DATABASE_URL=postgres://${PG_DATABASE_USER:-postgres}:${PG_DATABASE_PASSWORD:-postgres}@db:5432/default'
+      - 'SERVER_URL=${SERVICE_URL_SERVER}'
+      - 'REDIS_URL=redis://redis:6379'
+      - DISABLE_DB_MIGRATIONS=true
+      - DISABLE_CRON_JOBS_REGISTRATION=true
+      - 'STORAGE_TYPE=${STORAGE_TYPE:-local}'
+      - 'STORAGE_S3_REGION=${STORAGE_S3_REGION:-}'
+      - 'STORAGE_S3_NAME=${STORAGE_S3_NAME:-}'
+      - 'STORAGE_S3_ENDPOINT=${STORAGE_S3_ENDPOINT:-}'
+      - 'APP_SECRET=${APP_SECRET:-replace_me_with_a_random_string_minimum_32_characters}'
+      - 'MESSAGING_PROVIDER_GMAIL_ENABLED=${MESSAGING_PROVIDER_GMAIL_ENABLED:-false}'
+      - 'CALENDAR_PROVIDER_GOOGLE_ENABLED=${CALENDAR_PROVIDER_GOOGLE_ENABLED:-false}'
+      - 'AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}'
+      - 'AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}'
+      - 'AUTH_GOOGLE_CALLBACK_URL=${AUTH_GOOGLE_CALLBACK_URL:-}'
+      - 'AUTH_GOOGLE_APIS_CALLBACK_URL=${AUTH_GOOGLE_APIS_CALLBACK_URL:-}'
+      - 'CALENDAR_PROVIDER_MICROSOFT_ENABLED=${CALENDAR_PROVIDER_MICROSOFT_ENABLED:-false}'
+      - 'MESSAGING_PROVIDER_MICROSOFT_ENABLED=${MESSAGING_PROVIDER_MICROSOFT_ENABLED:-false}'
+      - 'AUTH_MICROSOFT_ENABLED=${AUTH_MICROSOFT_ENABLED:-false}'
+      - 'AUTH_MICROSOFT_CLIENT_ID=${AUTH_MICROSOFT_CLIENT_ID:-}'
+      - 'AUTH_MICROSOFT_CLIENT_SECRET=${AUTH_MICROSOFT_CLIENT_SECRET:-}'
+      - 'AUTH_MICROSOFT_CALLBACK_URL=${AUTH_MICROSOFT_CALLBACK_URL:-}'
+      - 'AUTH_MICROSOFT_APIS_CALLBACK_URL=${AUTH_MICROSOFT_APIS_CALLBACK_URL:-}'
+      - 'EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-contact@yourdomain.com}'
+      - 'EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-Twenty CRM}'
+      - 'EMAIL_SYSTEM_ADDRESS=${EMAIL_SYSTEM_ADDRESS:-system@yourdomain.com}'
+      - 'EMAIL_DRIVER=${EMAIL_DRIVER:-smtp}'
+      - 'EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-}'
+      - 'EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}'
+      - 'EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}'
+      - 'EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}'
+      - 'COOLIFY_CONTAINER_NAME=${COOLIFY_CONTAINER_NAME:-}'
+    depends_on:
+      db:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    restart: always
+  db:
+    image: 'postgres:16-alpine'
+    volumes:
+      - '${COOLIFY_VOLUME_DB}:/var/lib/postgresql/data'
+    environment:
+      - 'POSTGRES_DB=${PG_DATABASE_NAME:-default}'
+      - 'POSTGRES_PASSWORD=${PG_DATABASE_PASSWORD:-postgres}'
+      - 'POSTGRES_USER=${PG_DATABASE_USER:-postgres}'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -U ${PG_DATABASE_USER:-postgres} -h localhost -d postgres'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: always
+  redis:
+    image: 'redis:7-alpine'
+    command:
+      - redis-server
+      - '--maxmemory-policy'
+      - noeviction
+      - '--save'
+      - '60'
+      - '1'
+    volumes:
+      - '${COOLIFY_VOLUME_REDIS}:/data'
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: always
